@@ -12,3 +12,5 @@ echo "alias $1='$2'" >> ~/.bashrc
 echo "Script name: $0"
 echo "Alias: $1"
 echo "Command: $2"
+
+source ~/.bashrc
