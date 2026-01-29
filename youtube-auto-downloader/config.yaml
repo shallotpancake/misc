@@ -1,0 +1,82 @@
+# YouTube Auto Downloader Configuration
+# =====================================
+
+# Directory where videos will be saved (each channel gets a subdirectory)
+download_directory: ./downloads
+
+# File to track which videos have been downloaded
+history_file: ./download_history.json
+
+# How often to check for new videos (in minutes)
+check_interval_minutes: 30
+
+# Maximum number of recent videos to check per channel per cycle
+max_videos_per_check: 5
+
+# Video format (yt-dlp format string)
+# Examples:
+#   - "best" - Best quality
+#   - "bestvideo+bestaudio" - Best video + best audio (may require merging)
+#   - "bestvideo[height<=1080]+bestaudio" - Max 1080p
+#   - "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" - Prefer MP4
+format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+
+# Download options
+download_thumbnail: false
+download_subtitles: false
+download_auto_subtitles: false
+subtitle_languages:
+  - en
+
+# Enable verbose output
+verbose: false
+
+# Additional yt-dlp options (advanced users)
+# See: https://github.com/yt-dlp/yt-dlp#usage-and-options
+yt_dlp_options: {}
+  # Example options:
+  # merge_output_format: mp4
+  # postprocessors:
+  #   - key: FFmpegVideoConvertor
+  #     preferedformat: mp4
+
+# ==================
+# Channel Configuration
+# ==================
+# To find a channel ID:
+#   1. Go to the YouTube channel page
+#   2. View page source (Ctrl+U)
+#   3. Search for "channelId" to find the ID (starts with UC)
+#
+# Or use: python youtube_auto_downloader.py --get-channel-id "https://youtube.com/@channelname"
+
+channels:
+  # Example channel configuration
+  - id: "UCxxxxxxxxxxxxxxxxxxxxxx"  # Replace with actual channel ID
+    name: "Example Channel"          # Friendly name for the channel
+    enabled: true                    # Set to false to temporarily disable
+
+    # Optional: Filter videos by title keywords
+    # include_keywords:              # Only download if title contains these
+    #   - "tutorial"
+    #   - "guide"
+    # exclude_keywords:              # Skip videos with these in title
+    #   - "shorts"
+    #   - "live"
+
+    # Optional: Override global settings for this channel
+    # max_videos_per_check: 10
+
+  # Add more channels below:
+  # - id: "UCyyyyyyyyyyyyyyyyyyyy"
+  #   name: "Another Channel"
+  #   enabled: true
+
+  # Example: Tech channel that excludes livestreams
+  # - id: "UCzzzzzzzzzzzzzzzzzzzz"
+  #   name: "Tech Reviews"
+  #   enabled: true
+  #   exclude_keywords:
+  #     - "LIVE"
+  #     - "Stream"
+  #     - "#shorts"
