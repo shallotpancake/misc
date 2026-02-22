@@ -147,16 +147,17 @@ impl MovementRules {
     }
 
     /// Whether a movement type provokes reactions (e.g., Attack of Opportunity).
-    /// Step and Crawl specifically do not provoke.
+    /// Step is the notable exception — it specifically does NOT provoke.
+    /// All other movement types have the Move trait and provoke normally.
     pub fn provokes_reactions(movement_type: &MovementType) -> bool {
         match movement_type {
-            MovementType::Stride => true,
             MovementType::Step => false,
-            MovementType::Crawl => false,
-            MovementType::Climb => true,
-            MovementType::Swim => true,
-            MovementType::Fly => true,
-            MovementType::Burrow => true,
+            MovementType::Stride
+            | MovementType::Crawl
+            | MovementType::Climb
+            | MovementType::Swim
+            | MovementType::Fly
+            | MovementType::Burrow => true,
         }
     }
 
@@ -447,8 +448,8 @@ mod tests {
     }
 
     #[test]
-    fn crawl_does_not_provoke_reactions() {
-        assert!(!MovementRules::provokes_reactions(&MovementType::Crawl));
+    fn crawl_provokes_reactions() {
+        assert!(MovementRules::provokes_reactions(&MovementType::Crawl));
     }
 
     #[test]
