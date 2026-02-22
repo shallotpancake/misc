@@ -72,11 +72,15 @@ pub enum ConditionEffect {
     ApplyModifier(ConditionModifierTarget, Modifier),
     ReduceActions(u32),
     GrantActions(u32),
+    /// Like ReduceActions but the condition value decreases by the number of actions lost.
+    ConsumeActions(u32),
     Incapacitated,
     ForcedMovement,
     PreventMovement,
     FlatFooted,
     SensoryBlock(SensoryChannel),
+    ReduceMaxHp,
+    ApplyCondition(ConditionType),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

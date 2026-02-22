@@ -15,7 +15,8 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<TurnStartEvent>()
+        app.init_state::<EncounterPhase>()
+            .add_message::<TurnStartEvent>()
             .add_message::<TurnEndEvent>()
             .add_message::<RoundStartEvent>()
             .add_message::<EncounterStartEvent>()

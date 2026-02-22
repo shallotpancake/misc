@@ -40,29 +40,27 @@ impl ActionCost {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MultipleAttackPenalty {
     pub attacks_made: u32,
-    pub agile: bool,
 }
 
 impl MultipleAttackPenalty {
     pub fn new() -> Self {
         Self {
             attacks_made: 0,
-            agile: false,
         }
     }
 
-    pub fn current_penalty(&self) -> i32 {
+    pub fn current_penalty(&self, agile: bool) -> i32 {
         match self.attacks_made {
             0 => 0,
             1 => {
-                if self.agile {
+                if agile {
                     -4
                 } else {
                     -5
                 }
             }
             _ => {
-                if self.agile {
+                if agile {
                     -8
                 } else {
                     -10
@@ -142,6 +140,11 @@ impl ActionPool {
                         "Open actions must be used before other actions".into(),
                     );
                 }
+                TraitCategory::Press if self.map.attacks_made == 0 => {
+                    return ActionFeasibility::Blocked(
+                        "Press actions require a prior attack this turn".into(),
+                    );
+                }
                 _ => {}
             }
         }
@@ -157,7 +160,9 @@ impl ActionPool {
             }
             ActionCost::Actions(n) => {
                 self.actions_spent += n;
-                self.non_open_action_taken = true;
+                if !traits.iter().any(|t| t.category == TraitCategory::Open) {
+                    self.non_open_action_taken = true;
+                }
             }
         }
 
@@ -172,6 +177,15 @@ impl ActionPool {
                 _ => {}
             }
         }
+    }
+
+    pub fn reset_for_new_turn(&mut self) {
+        self.actions_spent = 0;
+        self.actions_lost = 0;
+        self.actions_gained = 0;
+        self.map = MultipleAttackPenalty::new();
+        self.flourish_used = false;
+        self.non_open_action_taken = false;
     }
 
     pub fn new_round(&mut self) {
@@ -227,25 +241,23 @@ mod tests {
     #[test]
     fn map_progression() {
         let mut map = MultipleAttackPenalty::new();
-        assert_eq!(map.current_penalty(), 0);
+        assert_eq!(map.current_penalty(false), 0);
 
         map.record_attack();
-        assert_eq!(map.current_penalty(), -5);
+        assert_eq!(map.current_penalty(false), -5);
 
         map.record_attack();
-        assert_eq!(map.current_penalty(), -10);
+        assert_eq!(map.current_penalty(false), -10);
     }
 
     #[test]
     fn agile_map() {
-        let mut map = MultipleAttackPenalty {
-            attacks_made: 0,
-            agile: true,
-        };
+        let mut map = MultipleAttackPenalty::new();
+        assert_eq!(map.current_penalty(true), 0);
         map.record_attack();
-        assert_eq!(map.current_penalty(), -4);
+        assert_eq!(map.current_penalty(true), -4);
         map.record_attack();
-        assert_eq!(map.current_penalty(), -8);
+        assert_eq!(map.current_penalty(true), -8);
     }
 
     #[test]
@@ -278,5 +290,85 @@ mod tests {
         assert!(!pool
             .can_perform(ActionCost::Actions(1), &flourish)
             .is_available());
+    }
+
+    #[test]
+    fn press_requires_prior_attack() {
+        let mut pool = ActionPool::new_turn();
+        let press = vec![GameTrait::press()];
+        let attack = vec![GameTrait::attack()];
+
+        // Press should be blocked before any attack
+        assert!(!pool
+            .can_perform(ActionCost::Actions(1), &press)
+            .is_available());
+
+        // After an attack, press should be available
+        pool.spend(ActionCost::Actions(1), &attack);
+        assert!(pool
+            .can_perform(ActionCost::Actions(1), &press)
+            .is_available());
+    }
+
+    #[test]
+    fn open_allows_multiple_before_non_open() {
+        let mut pool = ActionPool::new_turn();
+        let open = vec![GameTrait::open()];
+
+        // First open action should succeed
+        assert!(pool
+            .can_perform(ActionCost::Actions(1), &open)
+            .is_available());
+        pool.spend(ActionCost::Actions(1), &open);
+
+        // Second open action should also succeed (no non-open action taken yet)
+        assert!(pool
+            .can_perform(ActionCost::Actions(1), &open)
+            .is_available());
+        pool.spend(ActionCost::Actions(1), &open);
+
+        // Now spend a non-open action
+        pool.spend(ActionCost::Actions(1), &[]);
+
+        // Open action should now be blocked
+        // (no remaining actions anyway, but test the flag)
+        let mut pool2 = ActionPool::new_turn();
+        let open = vec![GameTrait::open()];
+        pool2.spend(ActionCost::Actions(1), &open);
+        pool2.spend(ActionCost::Actions(1), &[]); // non-open
+        assert!(!pool2
+            .can_perform(ActionCost::Actions(1), &open)
+            .is_available());
+    }
+
+    #[test]
+    fn reset_for_new_turn() {
+        let mut pool = ActionPool::new_turn();
+        let attack = vec![GameTrait::attack()];
+        let flourish = vec![GameTrait::flourish()];
+
+        // Simulate some activity
+        pool.spend(ActionCost::Actions(1), &attack);
+        pool.spend(ActionCost::Actions(1), &flourish);
+        pool.actions_lost = 1;
+        pool.actions_gained = 1;
+
+        assert_eq!(pool.actions_spent, 2);
+        assert!(pool.flourish_used);
+        assert!(pool.non_open_action_taken);
+        assert_eq!(pool.map.attacks_made, 1);
+
+        // Reset for new turn
+        pool.reset_for_new_turn();
+
+        assert_eq!(pool.actions_spent, 0);
+        assert_eq!(pool.actions_lost, 0);
+        assert_eq!(pool.actions_gained, 0);
+        assert_eq!(pool.map.attacks_made, 0);
+        assert!(!pool.flourish_used);
+        assert!(!pool.non_open_action_taken);
+
+        // base_actions and reaction_used should be preserved
+        assert_eq!(pool.base_actions, 3);
     }
 }

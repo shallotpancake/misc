@@ -16,6 +16,8 @@ pub mod topology;
 
 use bevy::prelude::*;
 
+use crate::EngineSet;
+
 pub use grid2d::Grid2D;
 pub use position::{Direction, Position};
 pub use terrain::{Terrain, TerrainEffect};
@@ -27,7 +29,10 @@ impl Plugin for SpatialPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<MoveRequestedEvent>()
             .add_message::<MoveResolvedEvent>()
-            .add_systems(Update, resolve_movement_system);
+            .add_systems(
+                Update,
+                resolve_movement_system.in_set(EngineSet::ResolveMechanics),
+            );
     }
 }
 
@@ -87,8 +92,7 @@ fn resolve_movement_system(
             continue;
         }
 
-        let terrain = grid.terrain_at(request.to);
-        match terrain.movement_cost() {
+        match grid.path_cost_in_feet(&[request.from, request.to]) {
             None => {
                 results.write(MoveResolvedEvent {
                     entity: request.entity,
@@ -99,13 +103,12 @@ fn resolve_movement_system(
                     reason: Some("Impassable terrain".into()),
                 });
             }
-            Some(multiplier) => {
-                let base_cost = grid.distance_in_feet(request.from, request.to);
+            Some(cost) => {
                 results.write(MoveResolvedEvent {
                     entity: request.entity,
                     from: request.from,
                     to: request.to,
-                    cost_in_feet: base_cost * multiplier,
+                    cost_in_feet: cost,
                     blocked: false,
                     reason: None,
                 });

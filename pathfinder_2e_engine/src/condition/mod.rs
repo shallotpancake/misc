@@ -9,6 +9,9 @@ pub mod types;
 
 use bevy::prelude::*;
 
+use crate::EngineSet;
+use crate::mechanics::modifier::Modifier;
+
 pub use rules::ConditionRules;
 pub use types::*;
 
@@ -19,8 +22,52 @@ impl Plugin for ConditionPlugin {
         app.add_message::<ConditionAppliedEvent>()
             .add_message::<ConditionRemovedEvent>()
             .add_message::<ConditionChangedEvent>()
-            .add_systems(Update, end_of_turn_condition_decay);
+            .add_systems(
+                Update,
+                end_of_turn_condition_decay.in_set(EngineSet::ApplyEffects),
+            );
     }
+}
+
+/// Bridge: collect all modifiers that the mechanics layer should apply
+/// based on an entity's active conditions. This is the wiring between
+/// the condition layer (what states are active) and the mechanics layer
+/// (what modifiers apply to checks).
+///
+/// Consumers building a `CheckContext` call this to automatically include
+/// condition-based modifiers without knowing condition internals.
+pub fn collect_condition_modifiers(conditions: &Conditions) -> Vec<Modifier> {
+    let mut modifiers = Vec::new();
+    for active in &conditions.active {
+        let effects = ConditionRules::effects(active.condition, active.severity);
+        for effect in effects {
+            if let ConditionEffect::ApplyModifier(_, modifier) = effect {
+                modifiers.push(modifier);
+            }
+        }
+    }
+    modifiers
+}
+
+/// Bridge: collect only modifiers that apply to a specific target
+/// (e.g., only ArmorClass modifiers, or only AttackRolls modifiers).
+/// Also includes modifiers targeting `All`.
+pub fn collect_targeted_condition_modifiers(
+    conditions: &Conditions,
+    target: &ConditionModifierTarget,
+) -> Vec<Modifier> {
+    let mut modifiers = Vec::new();
+    for active in &conditions.active {
+        let effects = ConditionRules::effects(active.condition, active.severity);
+        for effect in effects {
+            if let ConditionEffect::ApplyModifier(ref effect_target, modifier) = effect {
+                if effect_target == target || *effect_target == ConditionModifierTarget::All {
+                    modifiers.push(modifier);
+                }
+            }
+        }
+    }
+    modifiers
 }
 
 /// Component: all active conditions on an entity.

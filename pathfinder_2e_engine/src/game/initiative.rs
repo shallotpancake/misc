@@ -44,8 +44,10 @@ impl InitiativeOrder {
     }
 }
 
-/// The phase of the encounter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+/// The phase of the encounter, implemented as a Bevy State.
+/// Systems can be gated with `.run_if(in_state(EncounterPhase::InProgress))`
+/// to only execute during active encounters.
+#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum EncounterPhase {
     #[default]
     NotStarted,
@@ -54,10 +56,11 @@ pub enum EncounterPhase {
     Ended,
 }
 
-/// Resource: the overall encounter state.
+/// Resource: the overall encounter state (round/turn tracking).
+/// Phase transitions should be done via Bevy's `NextState<EncounterPhase>`
+/// so that state-gated systems activate correctly.
 #[derive(Resource, Debug, Clone)]
 pub struct EncounterState {
-    pub phase: EncounterPhase,
     pub round: u32,
     pub current_turn_index: usize,
 }
@@ -65,7 +68,6 @@ pub struct EncounterState {
 impl Default for EncounterState {
     fn default() -> Self {
         Self {
-            phase: EncounterPhase::NotStarted,
             round: 0,
             current_turn_index: 0,
         }
@@ -74,7 +76,6 @@ impl Default for EncounterState {
 
 impl EncounterState {
     pub fn start(&mut self) {
-        self.phase = EncounterPhase::InProgress;
         self.round = 1;
         self.current_turn_index = 0;
     }
@@ -89,10 +90,6 @@ impl EncounterState {
         } else {
             false
         }
-    }
-
-    pub fn end(&mut self) {
-        self.phase = EncounterPhase::Ended;
     }
 }
 

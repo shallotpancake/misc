@@ -41,10 +41,13 @@ impl ConditionRules {
                 Modifier::new(-val, ModifierType::Status, "stupefied"),
             )],
 
-            ConditionType::Drained => vec![ConditionEffect::ApplyModifier(
-                ConditionModifierTarget::Specific("fortitude".into()),
-                Modifier::new(-val, ModifierType::Status, "drained"),
-            )],
+            ConditionType::Drained => vec![
+                ConditionEffect::ApplyModifier(
+                    ConditionModifierTarget::Specific("constitution-based".into()),
+                    Modifier::new(-val, ModifierType::Status, "drained"),
+                ),
+                ConditionEffect::ReduceMaxHp,
+            ],
 
             ConditionType::FlatFooted => vec![
                 ConditionEffect::FlatFooted,
@@ -81,7 +84,7 @@ impl ConditionRules {
 
             ConditionType::Slowed => vec![ConditionEffect::ReduceActions(severity.value())],
             ConditionType::Quickened => vec![ConditionEffect::GrantActions(1)],
-            ConditionType::Stunned => vec![ConditionEffect::ReduceActions(severity.value())],
+            ConditionType::Stunned => vec![ConditionEffect::ConsumeActions(severity.value())],
 
             ConditionType::Paralyzed => vec![
                 ConditionEffect::Incapacitated,
@@ -94,6 +97,8 @@ impl ConditionRules {
 
             ConditionType::Unconscious => vec![
                 ConditionEffect::Incapacitated,
+                ConditionEffect::ApplyCondition(ConditionType::Blinded),
+                ConditionEffect::ApplyCondition(ConditionType::Prone),
                 ConditionEffect::FlatFooted,
                 ConditionEffect::ApplyModifier(
                     ConditionModifierTarget::ArmorClass,
@@ -101,14 +106,23 @@ impl ConditionRules {
                 ),
             ],
 
-            ConditionType::Immobilized
-            | ConditionType::Restrained
-            | ConditionType::Grabbed => vec![
+            ConditionType::Immobilized => vec![ConditionEffect::PreventMovement],
+
+            ConditionType::Grabbed => vec![
                 ConditionEffect::PreventMovement,
                 ConditionEffect::FlatFooted,
                 ConditionEffect::ApplyModifier(
                     ConditionModifierTarget::ArmorClass,
-                    Modifier::new(-2, ModifierType::Circumstance, "flat-footed (immobilized)"),
+                    Modifier::new(-2, ModifierType::Circumstance, "flat-footed (grabbed)"),
+                ),
+            ],
+
+            ConditionType::Restrained => vec![
+                ConditionEffect::PreventMovement,
+                ConditionEffect::FlatFooted,
+                ConditionEffect::ApplyModifier(
+                    ConditionModifierTarget::ArmorClass,
+                    Modifier::new(-2, ModifierType::Circumstance, "flat-footed (restrained)"),
                 ),
             ],
 
@@ -147,7 +161,76 @@ mod tests {
     fn slowed_reduces_actions() {
         let effects = ConditionRules::effects(ConditionType::Slowed, ConditionSeverity::Value(1));
         assert_eq!(effects.len(), 1);
-        matches!(&effects[0], ConditionEffect::ReduceActions(1));
+        assert!(
+            matches!(&effects[0], ConditionEffect::ReduceActions(1)),
+            "Slowed should use ReduceActions, got {:?}",
+            effects[0]
+        );
+    }
+
+    #[test]
+    fn stunned_consumes_actions() {
+        let effects =
+            ConditionRules::effects(ConditionType::Stunned, ConditionSeverity::Value(2));
+        assert_eq!(effects.len(), 1);
+        assert!(
+            matches!(&effects[0], ConditionEffect::ConsumeActions(2)),
+            "Stunned should use ConsumeActions, got {:?}",
+            effects[0]
+        );
+    }
+
+    #[test]
+    fn immobilized_does_not_produce_flat_footed() {
+        let effects =
+            ConditionRules::effects(ConditionType::Immobilized, ConditionSeverity::Active);
+        assert!(
+            !effects
+                .iter()
+                .any(|e| matches!(e, ConditionEffect::FlatFooted)),
+            "Immobilized should NOT produce FlatFooted"
+        );
+    }
+
+    #[test]
+    fn grabbed_produces_flat_footed() {
+        let effects = ConditionRules::effects(ConditionType::Grabbed, ConditionSeverity::Active);
+        assert!(
+            effects
+                .iter()
+                .any(|e| matches!(e, ConditionEffect::FlatFooted)),
+            "Grabbed should produce FlatFooted"
+        );
+    }
+
+    #[test]
+    fn unconscious_cascades_to_blinded_and_prone() {
+        let effects =
+            ConditionRules::effects(ConditionType::Unconscious, ConditionSeverity::Active);
+        assert!(
+            effects.iter().any(
+                |e| matches!(e, ConditionEffect::ApplyCondition(ConditionType::Blinded))
+            ),
+            "Unconscious should cascade to Blinded via ApplyCondition"
+        );
+        assert!(
+            effects
+                .iter()
+                .any(|e| matches!(e, ConditionEffect::ApplyCondition(ConditionType::Prone))),
+            "Unconscious should cascade to Prone via ApplyCondition"
+        );
+    }
+
+    #[test]
+    fn drained_includes_reduce_max_hp() {
+        let effects =
+            ConditionRules::effects(ConditionType::Drained, ConditionSeverity::Value(1));
+        assert!(
+            effects
+                .iter()
+                .any(|e| matches!(e, ConditionEffect::ReduceMaxHp)),
+            "Drained should include ReduceMaxHp"
+        );
     }
 
     #[test]

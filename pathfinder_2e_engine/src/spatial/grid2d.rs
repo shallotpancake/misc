@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::collections::HashMap;
 
 use super::position::{Direction, Position};
 use super::terrain::Terrain;
@@ -11,7 +10,7 @@ use super::topology::Topology;
 pub struct Grid2D {
     pub width: u32,
     pub height: u32,
-    terrain: HashMap<(i32, i32), Terrain>,
+    terrain: Vec<Terrain>,
 }
 
 impl Grid2D {
@@ -19,7 +18,15 @@ impl Grid2D {
         Self {
             width,
             height,
-            terrain: HashMap::new(),
+            terrain: vec![Terrain::Normal; (width * height) as usize],
+        }
+    }
+
+    fn index(&self, pos: Position) -> Option<usize> {
+        if self.in_bounds(pos) {
+            Some((pos.y as u32 * self.width + pos.x as u32) as usize)
+        } else {
+            None
         }
     }
 }
@@ -30,14 +37,16 @@ impl Topology for Grid2D {
     }
 
     fn terrain_at(&self, pos: Position) -> Terrain {
-        self.terrain
-            .get(&(pos.x, pos.y))
-            .copied()
-            .unwrap_or(Terrain::Normal)
+        match self.index(pos) {
+            Some(idx) => self.terrain[idx],
+            None => Terrain::Normal,
+        }
     }
 
     fn set_terrain(&mut self, pos: Position, terrain: Terrain) {
-        self.terrain.insert((pos.x, pos.y), terrain);
+        if let Some(idx) = self.index(pos) {
+            self.terrain[idx] = terrain;
+        }
     }
 
     /// PF2e diagonal movement: every second diagonal costs 10 feet instead of 5.
@@ -118,5 +127,55 @@ mod tests {
         let grid = Grid2D::new(10, 10);
         let neighbors = grid.neighbors(Position::new(5, 5));
         assert_eq!(neighbors.len(), 8);
+    }
+
+    #[test]
+    fn path_cost_mixed_terrain() {
+        let mut grid = Grid2D::new(10, 10);
+        // Path: (0,0) -> (1,0) -> (2,0) -> (3,0)
+        // (1,0) normal, (2,0) difficult, (3,0) normal
+        grid.set_terrain(Position::new(2, 0), Terrain::Difficult);
+        let path = vec![
+            Position::new(0, 0),
+            Position::new(1, 0),
+            Position::new(2, 0),
+            Position::new(3, 0),
+        ];
+        // Step 1: normal terrain, cardinal = 5 * 1 = 5
+        // Step 2: difficult terrain, cardinal = 5 * 2 = 10
+        // Step 3: normal terrain, cardinal = 5 * 1 = 5
+        assert_eq!(grid.path_cost_in_feet(&path), Some(20));
+    }
+
+    #[test]
+    fn path_cost_blocked_by_impassable() {
+        let mut grid = Grid2D::new(10, 10);
+        grid.set_terrain(Position::new(2, 0), Terrain::Impassable);
+        let path = vec![
+            Position::new(0, 0),
+            Position::new(1, 0),
+            Position::new(2, 0),
+            Position::new(3, 0),
+        ];
+        assert_eq!(grid.path_cost_in_feet(&path), None);
+    }
+
+    #[test]
+    fn path_cost_diagonal_alternation() {
+        let grid = Grid2D::new(10, 10);
+        // 4 diagonal steps: costs should alternate 5, 10, 5, 10
+        let path = vec![
+            Position::new(0, 0),
+            Position::new(1, 1),
+            Position::new(2, 2),
+            Position::new(3, 3),
+            Position::new(4, 4),
+        ];
+        // Step 1: diagonal #1 (odd) = 5
+        // Step 2: diagonal #2 (even) = 10
+        // Step 3: diagonal #3 (odd) = 5
+        // Step 4: diagonal #4 (even) = 10
+        // Total = 30
+        assert_eq!(grid.path_cost_in_feet(&path), Some(30));
     }
 }

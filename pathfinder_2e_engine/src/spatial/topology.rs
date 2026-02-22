@@ -23,4 +23,31 @@ pub trait Topology {
     fn is_adjacent(&self, a: Position, b: Position) -> bool {
         self.neighbors(a).contains(&b)
     }
+
+    /// Movement cost along a specific path, checking terrain per cell.
+    /// Returns None if any cell in the path is impassable.
+    fn path_cost_in_feet(&self, path: &[Position]) -> Option<u32> {
+        if path.len() < 2 {
+            return Some(0);
+        }
+        let mut total = 0u32;
+        let mut diagonal_count = 0u32;
+        for window in path.windows(2) {
+            let from = window[0];
+            let to = window[1];
+            let terrain = self.terrain_at(to);
+            let multiplier = terrain.movement_cost()?; // None = impassable
+            let dx = (to.x - from.x).unsigned_abs();
+            let dy = (to.y - from.y).unsigned_abs();
+            let is_diagonal = dx == 1 && dy == 1;
+            let base_cost = if is_diagonal {
+                diagonal_count += 1;
+                if diagonal_count % 2 == 0 { 10 } else { 5 }
+            } else {
+                5
+            };
+            total += base_cost * multiplier;
+        }
+        Some(total)
+    }
 }

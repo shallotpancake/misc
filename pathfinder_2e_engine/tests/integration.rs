@@ -140,15 +140,15 @@ fn action_economy_applies_uniformly() {
 
     // First attack: no MAP
     let attack_traits = vec![GameTrait::attack()];
-    assert_eq!(pool.map.current_penalty(), 0);
+    assert_eq!(pool.map.current_penalty(false), 0);
     pool.spend(ActionCost::Actions(1), &attack_traits);
 
-    // Second attack: -5 MAP
-    assert_eq!(pool.map.current_penalty(), -5);
+    // Second attack: -5 MAP (non-agile)
+    assert_eq!(pool.map.current_penalty(false), -5);
     pool.spend(ActionCost::Actions(1), &attack_traits);
 
     // Third attack: -10 MAP, 1 action remaining
-    assert_eq!(pool.map.current_penalty(), -10);
+    assert_eq!(pool.map.current_penalty(false), -10);
     assert_eq!(pool.remaining(), 1);
 }
 
@@ -204,4 +204,67 @@ fn condition_component_is_inert_data() {
     // The component doesn't know what frightened DOES — that's in ConditionRules
     let effects = ConditionRules::effects(ConditionType::Frightened, ConditionSeverity::Value(3));
     assert!(!effects.is_empty());
+}
+
+/// The condition→check wiring bridges two independent layers:
+/// conditions (what states are active) and mechanics (how checks resolve).
+/// The bridge function collects modifiers from conditions without either
+/// layer knowing about the other's internals.
+#[test]
+fn condition_to_check_wiring() {
+    use pathfinder_mechanics::condition::collect_condition_modifiers;
+
+    let mut conditions = Conditions::default();
+    conditions.apply(ConditionType::Frightened, ConditionSeverity::Value(2));
+    conditions.apply(ConditionType::Sickened, ConditionSeverity::Value(1));
+
+    // The bridge function collects all condition modifiers automatically
+    let condition_mods = collect_condition_modifiers(&conditions);
+
+    // Frightened 2 → status -2, Sickened 1 → status -1
+    // Both are status penalties, so stacking takes the worst: -2
+    let mut stack = ModifierStack::new()
+        .with(Modifier::new(10, ModifierType::Untyped, "base"));
+    for m in condition_mods {
+        stack = stack.with(m);
+    }
+
+    let result = resolve_check(&CheckContext {
+        natural_roll: 10,
+        modifiers: stack,
+        dc: 18,
+        degree_shifts: 0,
+    });
+
+    // 10 + 10 - 2 (worst status penalty) = 18 vs DC 18 → Success
+    assert_eq!(result.total, 18);
+    assert_eq!(result.final_degree, DegreeOfSuccess::Success);
+}
+
+/// Targeted condition modifiers let consumers filter by what the check
+/// is for — an attack roll check only picks up attack-relevant penalties.
+#[test]
+fn targeted_condition_modifiers() {
+    use pathfinder_mechanics::condition::collect_targeted_condition_modifiers;
+
+    let mut conditions = Conditions::default();
+    conditions.apply(ConditionType::Clumsy, ConditionSeverity::Value(2));
+    conditions.apply(ConditionType::Enfeebled, ConditionSeverity::Value(3));
+
+    // Clumsy affects Dex-based and AC; Enfeebled affects Str-based
+    let ac_mods = collect_targeted_condition_modifiers(
+        &conditions,
+        &ConditionModifierTarget::ArmorClass,
+    );
+    // Only clumsy should appear for AC
+    assert_eq!(ac_mods.len(), 1);
+    assert_eq!(ac_mods[0].value, -2);
+
+    let str_mods = collect_targeted_condition_modifiers(
+        &conditions,
+        &ConditionModifierTarget::StrengthBased,
+    );
+    // Only enfeebled should appear for strength
+    assert_eq!(str_mods.len(), 1);
+    assert_eq!(str_mods[0].value, -3);
 }

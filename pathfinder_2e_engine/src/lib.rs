@@ -40,11 +40,28 @@ pub mod game;
 
 use bevy::prelude::*;
 
+/// System sets that define execution order across the engine.
+/// This ensures deterministic processing: mechanics resolve before
+/// effects propagate, just as physical laws resolve before consequences.
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EngineSet {
+    /// Resolve mechanics: checks, movement requests
+    ResolveMechanics,
+    /// Apply effects: condition decay, status propagation
+    ApplyEffects,
+}
+
 /// The top-level plugin that registers all subsystems.
 pub struct PathfinderPlugin;
 
 impl Plugin for PathfinderPlugin {
     fn build(&self, app: &mut App) {
+        // Define system ordering: mechanics resolve before effects propagate
+        app.configure_sets(
+            Update,
+            EngineSet::ResolveMechanics.before(EngineSet::ApplyEffects),
+        );
+
         app.add_plugins((
             mechanics::MechanicsPlugin,
             spatial::SpatialPlugin,
