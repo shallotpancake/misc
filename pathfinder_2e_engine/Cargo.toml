@@ -1,0 +1,8 @@
+[package]
+name = "pathfinder_mechanics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.18", default-features = false, features = ["std", "multi_threaded", "bevy_state", "bevy_log"] }
+rand = "0.8"
