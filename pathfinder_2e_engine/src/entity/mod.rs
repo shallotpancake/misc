@@ -9,8 +9,10 @@
 //! The mechanics systems operate on these components uniformly.
 
 pub mod ability;
+pub mod bestiary;
 pub mod class;
 pub mod creature;
+pub mod enemy;
 pub mod item;
 pub mod proficiency;
 
@@ -24,6 +26,11 @@ pub use item::{
     ItemRarity, ItemType, ShieldData, WeaponData, armor_modifier, weapon_modifier_bonus,
 };
 pub use proficiency::{Proficiency, SkillProficiencies, SavingThrows};
+pub use enemy::{
+    AttackData, CreatureSize, CreatureType, DamageResistance, DamageWeakness, EnemyAbilities,
+    EnemyData, Sense, SpecialAbility,
+};
+pub use bestiary::EnemyStatBlock;
 
 pub struct EntityPlugin;
 
