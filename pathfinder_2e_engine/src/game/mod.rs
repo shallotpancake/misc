@@ -5,7 +5,12 @@
 //! doesn't define mechanics — it just asks the mechanics layer
 //! to resolve things in the right order.
 
+pub mod ai;
+pub mod combat;
+pub mod faction;
 pub mod initiative;
+pub mod runner;
+pub mod sandbox;
 
 use bevy::prelude::*;
 

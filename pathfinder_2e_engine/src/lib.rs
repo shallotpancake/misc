@@ -37,6 +37,7 @@ pub mod condition;
 pub mod action;
 pub mod entity;
 pub mod game;
+pub mod ui;
 
 use bevy::prelude::*;
 
