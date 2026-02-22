@@ -10,6 +10,7 @@
 //! doesn't touch any other layer.
 
 pub mod grid2d;
+pub mod movement;
 pub mod position;
 pub mod terrain;
 pub mod topology;
@@ -19,6 +20,7 @@ use bevy::prelude::*;
 use crate::EngineSet;
 
 pub use grid2d::Grid2D;
+pub use movement::{MovementRules, MovementType};
 pub use position::{Direction, Position};
 pub use terrain::{Terrain, TerrainEffect};
 pub use topology::Topology;

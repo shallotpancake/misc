@@ -60,6 +60,7 @@ pub enum ConditionModifierTarget {
     AttackRolls,
     SavingThrows,
     SkillChecks,
+    Perception,
     StrengthBased,
     DexterityBased,
     SpellBased,
@@ -81,6 +82,24 @@ pub enum ConditionEffect {
     SensoryBlock(SensoryChannel),
     ReduceMaxHp,
     ApplyCondition(ConditionType),
+    /// Attacker must pass a flat check of this DC to target the creature.
+    RequireFlatCheck(u32),
+    /// Reduce movement speed by this many feet.
+    ReduceSpeed(u32),
+    /// Must select targets randomly (e.g., Confused).
+    RandomTargeting,
+    /// Cannot use reactions.
+    PreventReactions,
+    /// Reduce the maximum dying value by this amount (e.g., Doomed).
+    ReduceMaxDying(u32),
+    /// Must make recovery flat checks each round (e.g., Dying).
+    RecoveryCheckRequired,
+    /// Concentrate actions are restricted to specific targets (e.g., Fascinated).
+    RestrictConcentrate,
+    /// Increases the dying value gained when gaining the dying condition (e.g., Wounded).
+    IncreaseDyingValue(u32),
+    /// Resistance to all damage (e.g., Petrified).
+    DamageResistance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -9,13 +9,20 @@
 //! The mechanics systems operate on these components uniformly.
 
 pub mod ability;
+pub mod class;
 pub mod creature;
+pub mod item;
 pub mod proficiency;
 
 use bevy::prelude::*;
 
 pub use ability::{AbilityScores, AbilityType};
+pub use class::{CharacterClass, ClassData, ClassProgression, compute_max_hp};
 pub use creature::CreatureBundle;
+pub use item::{
+    ArmorCategory, ArmorData, Bulk, ConsumableData, ConsumableType, DamageType, Inventory, Item,
+    ItemRarity, ItemType, ShieldData, WeaponData, armor_modifier, weapon_modifier_bonus,
+};
 pub use proficiency::{Proficiency, SkillProficiencies, SavingThrows};
 
 pub struct EntityPlugin;
